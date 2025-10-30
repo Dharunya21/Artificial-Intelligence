@@ -1,0 +1,96 @@
+import copy
+import math
+
+# ---- Define Goal State ----
+GOAL_STATE = [[1, 2, 3],
+              [4, 5, 6],
+              [7, 8, 0]]  # 0 = blank tile
+
+# ---- Helper Functions ----
+def print_board(state):
+    for row in state:
+        print(row)
+    print()
+
+def is_goal(state):
+    return state == GOAL_STATE
+
+def misplaced_tiles(state):
+    """Heuristic: number of misplaced tiles (ignoring blank)."""
+    count = 0
+    for i in range(3):
+        for j in range(3):
+            if state[i][j] != 0 and state[i][j] != GOAL_STATE[i][j]:
+                count += 1
+    return count
+
+def get_blank(state):
+    for i in range(3):
+        for j in range(3):
+            if state[i][j] == 0:
+                return i, j
+
+def get_neighbors(state):
+    """Generate valid moves by sliding the blank tile."""
+    x, y = get_blank(state)
+    neighbors = []
+    directions = [(1,0), (-1,0), (0,1), (0,-1)]  # Down, Up, Right, Left
+    for dx, dy in directions:
+        nx, ny = x + dx, y + dy
+        if 0 <= nx < 3 and 0 <= ny < 3:
+            new_state = copy.deepcopy(state)
+            new_state[x][y], new_state[nx][ny] = new_state[nx][ny], new_state[x][y]
+            neighbors.append(new_state)
+    return neighbors
+
+# ---- Alpha-Beta Minimax Search ----
+def alphabeta(state, depth, alpha, beta, maximizing_player):
+    """
+    Alpha-Beta pruning version of minimax for 8-puzzle.
+    - maximizing_player = True means 'opponent' (tries to make state worse)
+    - maximizing_player = False means 'player' (tries to make state better)
+    """
+    if depth == 0 or is_goal(state):
+        # Evaluation function: we want lower misplaced tile count
+        # but minimax maximizes value, so return negative heuristic.
+        return -misplaced_tiles(state), state
+
+    if maximizing_player:
+        max_eval = -math.inf
+        best_state = None
+        for child in get_neighbors(state):
+            eval_val, _ = alphabeta(child, depth - 1, alpha, beta, False)
+            if eval_val > max_eval:
+                max_eval = eval_val
+                best_state = child
+            alpha = max(alpha, eval_val)
+            if beta <= alpha:
+                break  # Beta cutoff
+        return max_eval, best_state
+    else:
+        min_eval = math.inf
+        best_state = None
+        for child in get_neighbors(state):
+            eval_val, _ = alphabeta(child, depth - 1, alpha, beta, True)
+            if eval_val < min_eval:
+                min_eval = eval_val
+                best_state = child
+            beta = min(beta, eval_val)
+            if beta <= alpha:
+                break  # Alpha cutoff
+        return min_eval, best_state
+
+# ---- Demo Run ----
+if __name__ == "__main__":
+    start_state = [[1, 2, 3],
+                   [4, 0, 6],
+                   [7, 5, 8]]
+
+    print("Initial State:")
+    print_board(start_state)
+
+    value, best_next = alphabeta(start_state, depth=3, alpha=-math.inf, beta=math.inf, maximizing_player=False)
+
+    print("Heuristic Evaluation Value:", value)
+    print("Best Next State Found by Alpha–Beta Search:")
+    print_board(best_next)
